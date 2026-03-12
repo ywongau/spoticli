@@ -54,15 +54,11 @@ program
       return;
     }
 
-    if (tracks.length > 0) {
-      const trackUris = tracks.map((track) => track.uri);
-      await sdk.player.startResumePlayback(deviceId, null, trackUris);
-      console.log(
-        `Now playing top tracks for ${tracks.map((track) => track.name)}`,
-      );
-    } else {
-      console.log("No top tracks found for this artist.");
-    }
+    const trackUris = tracks.map((track) => track.uri);
+    await sdk.player.startResumePlayback(deviceId, null, trackUris);
+    console.log(
+      `Now playing top tracks for ${tracks.map((track) => track.name)}`,
+    );
   });
 
 program.parse(process.argv);

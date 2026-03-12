@@ -12,12 +12,14 @@ const redirectUrl = "https://example.org/callback";
 
 const generateRandomString = (length) =>
   crypto.randomBytes(60).toString("hex").slice(0, length);
+
+const accessToken = fs.existsSync("./token.json")
+  ? require("./token.json")
+  : null;
 /*
   @returns {Promise<ReturnType<import('@spotify/web-api-ts-sdk').SpotifyApi['getAccessToken']>>}
 */
-let accessToken = fs.existsSync("./token.json")
-  ? require("./token.json")
-  : null;
+
 const ensureToken = () => {
   if (!accessToken) {
     return Promise.reject(
@@ -26,14 +28,10 @@ const ensureToken = () => {
       ),
     );
   }
-  const api = SpotifyApi.withAccessToken(client_id, accessToken);
   const twoMinutes = 2 * 60 * 1000;
-  const shouldRenew = accessToken?.expires_at - Date.now() < twoMinutes;
+  const shouldRenew = accessToken?.expires - Date.now() < twoMinutes;
   const tokenPromise = shouldRenew
-    ? api.getAccessToken().then((newToken) => {
-        accessToken = newToken;
-        return accessToken;
-      })
+    ? renewToken(accessToken.refresh_token, client_id)
     : Promise.resolve(accessToken);
   return tokenPromise.then((token) =>
     SpotifyApi.withAccessToken(client_id, token),
@@ -59,10 +57,23 @@ const validate = (response) =>
   response.ok
     ? response.json()
     : response
-        .text()
-        .then((text) =>
-          Promise.reject(new Error(`${response.status} ${text}`)),
-        );
+      .text()
+      .then((text) =>
+        Promise.reject(new Error(`${response.status} ${text}`)),
+      );
+
+const handleTokenReponse = (response) =>
+  Promise.resolve(response).then(validate)
+    .then(accessToken =>
+      SpotifyApi
+        .withAccessToken(client_id, accessToken)
+        .getAccessToken()
+    )
+    .then((accessToken) => {
+      fs.writeFileSync("token.json", JSON.stringify(accessToken));
+      console.log("Tokens saved to tokens.json");
+      return accessToken;
+    });
 
 const auth = (callbackUrl) => {
   const url = new URL(callbackUrl);
@@ -84,14 +95,26 @@ const auth = (callbackUrl) => {
     },
     body: params.toString(),
   })
-    .then(validate)
-    .then((body) => {
-      const expires_at = Date.now() + 3600 * 1000;
-      const token = JSON.stringify({ ...body, expires_at });
-      fs.writeFileSync("token.json", token);
-      console.log("Tokens saved to tokens.json");
-    });
+    .then(handleTokenReponse);
 };
+
+const renewToken = (refreshToken, clientId) => {
+  const payload = {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/x-www-form-urlencoded'
+    },
+    body: new URLSearchParams({
+      grant_type: 'refresh_token',
+      refresh_token: refreshToken,
+      client_id: clientId,
+      client_secret: client_secret
+    }).toString(),
+  };
+  console.log('Renewing token with payload', payload);
+  return fetch(tokenUrl, payload)
+    .then(handleTokenReponse);
+}
 
 module.exports = {
   init,
