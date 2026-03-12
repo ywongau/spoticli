@@ -1,70 +1,8 @@
 #!/usr/bin/env node
 
-var request = require("request");
-var { spawn } = require("child_process");
-var fs = require("fs");
-var dotenv = require("dotenv");
-var path = require("path");
-var { program } = require("commander");
-var dotenv = require('dotenv');
-var crypto = require('crypto');
-var querystring = require('querystring');
-const { SpotifyApi } = require( '@spotify/web-api-ts-sdk');
-const token = require('./token.json');
-dotenv.config();
-var client_id = process.env.SPOTIFY_CLIENT_ID;
-var client_secret = process.env.SPOTIFY_CLIENT_SECRET;
-var domain = process.env.NGROK_DOMAIN;
-var redirect_uri = domain + '/callback'; // Your redirect uri
-
-const generateRandomString = (length) => {
-  return crypto
-  .randomBytes(60)
-  .toString('hex')
-  .slice(0, length);
-}
-
-const startServer = () =>
-  spawn("node", [path.join(__dirname, "app.js")], {
-    detached: false,
-    stdio: "inherit",
-  });
-
-const auth = () => {
-  var state = generateRandomString(16);
-  const scope =   [
-  "ugc-image-upload",
-  "user-read-playback-state",
-  "user-modify-playback-state",
-  "user-read-currently-playing",
-  "app-remote-control",
-  "streaming",
-  "playlist-read-private",
-  "playlist-read-collaborative",
-  "playlist-modify-public",
-  "playlist-modify-private",
-  "user-follow-modify",
-  "user-follow-read",
-  "user-read-playback-position",
-  "user-top-read",
-  "user-read-recently-played",
-  "user-library-modify",
-  "user-library-read",
-  "user-read-email",
-  "user-read-private"
-].join(" ");
-  var authUrl =
-    "https://accounts.spotify.com/authorize?" +
-    querystring.stringify({
-      response_type: "code",
-      client_id: client_id,
-      scope: scope,
-      redirect_uri: redirect_uri,
-      state: state,
-    });
-  console.log(authUrl);
-};
-
+const { program } = require("commander");
+const { auth, init, ensureToken } = require("./auth");
+const basic = (item) => ({ name: item.name, id: item.id });
 program
   .name("spoticli")
   .description("Spotify CLI for AI agents")
@@ -73,22 +11,58 @@ program
 program
   .command("init")
   .description("Display the Spotify authorization URL for user authentication")
+  .action(init);
+
+program
+  .command("auth")
+  .argument(
+    "<callbackUrl>",
+    "The callback URL received after user authentication",
+  )
+  .description("given callback URL, exchange code for access token")
   .action(auth);
 
 program
-  .command('auth')
-  .description('Start the authentication server')
-  .action(startServer);
+  .command("devices")
+  .description("List all available Spotify devices")
+  .action(async () => {
+    const api = await ensureToken();
+    const items = await api.player.getAvailableDevices();
+    console.log(JSON.stringify(items.devices.map(basic)));
+  });
 
 program
-  .command('devices')
-  .description('List all available Spotify devices')
-  .action(async () => {
-    const api = SpotifyApi.withAccessToken(client_id, token)
-    const newToken = await api.getAccessToken();
-    console.log('Access Token:', newToken);
-    const items = await api.search('Nier Automata','album');
-    console.log(items.albums.items);
+  .command("transfer")
+  .argument("<id>")
+  .action(async (id) => {
+    const api = await ensureToken();
+    const items = await api.player.transferPlayback([id], true);
+    console.log(items);
+  });
+
+program
+  .command("play")
+  .argument("<query>")
+  .argument("[deviceId]", "Optional device ID to play on")
+  .action(async (query, deviceId) => {
+    const sdk = await ensureToken();
+    const searchResults = await sdk.search(query, ["track"], "US", 10);
+    const tracks = searchResults.tracks.items;
+    console.log("deviceId", deviceId);
+    if (!tracks.length) {
+      console.log("Tracks not found.");
+      return;
+    }
+
+    if (tracks.length > 0) {
+      const trackUris = tracks.map((track) => track.uri);
+      await sdk.player.startResumePlayback(deviceId, null, trackUris);
+      console.log(
+        `Now playing top tracks for ${tracks.map((track) => track.name)}`,
+      );
+    } else {
+      console.log("No top tracks found for this artist.");
+    }
   });
 
 program.parse(process.argv);
