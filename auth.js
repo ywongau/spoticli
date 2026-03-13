@@ -9,18 +9,17 @@ const client_id = process.env.SPOTIFY_CLIENT_ID;
 const client_secret = process.env.SPOTIFY_CLIENT_SECRET;
 const tokenUrl = "https://accounts.spotify.com/api/token";
 const redirectUrl = "https://example.org/callback";
-
-const generateRandomString = (length) =>
-  crypto.randomBytes(60).toString("hex").slice(0, length);
-
 const accessToken = fs.existsSync("./token.json")
   ? require("./token.json")
   : null;
+
+const generateRandomString = (length) =>
+  crypto.randomBytes(60).toString("hex").slice(0, length);
 /*
   @returns {Promise<ReturnType<import('@spotify/web-api-ts-sdk').SpotifyApi['getAccessToken']>>}
 */
-
 const ensureToken = () => {
+
   if (!accessToken) {
     return Promise.reject(
       new Error(
@@ -34,11 +33,12 @@ const ensureToken = () => {
     ? renewToken(accessToken.refresh_token, client_id)
     : Promise.resolve(accessToken);
   return tokenPromise.then((token) =>
-    SpotifyApi.withAccessToken(client_id, token),
+   console.log(token) ?? SpotifyApi.withAccessToken(client_id, token),
   );
 };
 const scope =
   "user-read-private user-read-email user-read-playback-state user-modify-playback-state user-read-recently-played user-top-read";
+
 const init = () => {
   const state = generateRandomString(16);
   const authUrl =
@@ -64,15 +64,19 @@ const validate = (response) =>
 
 const handleTokenReponse = (response) =>
   Promise.resolve(response).then(validate)
-    .then(accessToken =>
+    .then(newToken =>
       SpotifyApi
-        .withAccessToken(client_id, accessToken)
+        .withAccessToken(client_id, newToken)
         .getAccessToken()
     )
-    .then((accessToken) => {
-      fs.writeFileSync("token.json", JSON.stringify(accessToken));
+    .then((newToken) => {
+      const combinedToken = {
+        ...accessToken,
+        ...newToken,
+      }
+      fs.writeFileSync("token.json", JSON.stringify(combinedToken));
       console.log("Tokens saved to tokens.json");
-      return accessToken;
+      return newToken;
     });
 
 const auth = (callbackUrl) => {

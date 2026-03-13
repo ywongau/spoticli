@@ -1,6 +1,6 @@
 {
   "name": "spoticlaw",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "",
   "main": "index.js",
   "author": "",
@@ -10,7 +10,7 @@
     "auth": "node index.js auth"
   },
   "bin": {
-    "spoticli": "index.js"
+    "spoticlaw": "index.js"
   },
   "dependencies": {
     "@spotify/web-api-ts-sdk": "^1.2.0",
