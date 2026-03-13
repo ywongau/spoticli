@@ -93,7 +93,7 @@ program
   .argument("[arg3]", "Third argument")
   .argument("[arg4]", "Fourth argument")
   .argument("[arg5]", "Fifth argument")
-  .action(async (func, ...args) => {
+  .action(async (endpoint, func, ...args) => {
     const sdk = await ensureToken();
     return sdk[endpoint][func](...args).then(logJson).catch(console.error);
   });

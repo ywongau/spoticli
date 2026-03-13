@@ -10,7 +10,7 @@ const client_secret = process.env.SPOTIFY_CLIENT_SECRET;
 const tokenUrl = "https://accounts.spotify.com/api/token";
 const redirectUrl = "https://example.org/callback";
 const accessToken = fs.existsSync("./token.json")
-  ? require("./token.json")
+  ? JSON.parse(fs.readFileSync("./token.json", "utf8"))
   : null;
 
 const generateRandomString = (length) =>
@@ -33,7 +33,7 @@ const ensureToken = () => {
     ? renewToken(accessToken.refresh_token, client_id)
     : Promise.resolve(accessToken);
   return tokenPromise.then((token) =>
-   console.log(token) ?? SpotifyApi.withAccessToken(client_id, token),
+    console.log(token) ?? SpotifyApi.withAccessToken(client_id, token),
   );
 };
 const scope =

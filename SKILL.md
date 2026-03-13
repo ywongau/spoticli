@@ -7,17 +7,27 @@ description: Allow the assistant to control Spotify playback from chat using the
 
 This skill lets the assistant run the spoticlaw CLI in response to chat commands in group conversations (family WhatsApp group or other specified chats).
 
+# Setup
+
+- Assistant ask user to provide environment variables and SPOTIFY_CLIENT_ID and SPOTIFY_CLIENT_SECRET, and store it in .env in working directory where `spoticlaw` is called
+- Assistant run `init` and send the authorization URL to user, and ask user to copy the callback URL from browser after login is successful
+- Assistant run `auth "<callback URL>"` whichi will write token.json to working directory. Now the other commans are ready for use
+
 # Commands
 
 ## spoticlaw player
 
-## player <function> [arg1] [arg2] [arg3] [arg4] Call sdk.player methods
+## sdk <endpoint> <function> [arg1] [arg2] [arg3] [arg4] [arg5]
 
-See [PlayerEndpoints](types/PlayerEndpoints.d.ts)
+Call sdk endpoints. See node_modules/@spotifyweb-api-ts-sdk/dist/cjs/SpotifyApi.d.ts
 
-## search <function> [arg1] [arg2] [arg3] [arg4] Call sdk.search methods
+## play <query> [deviceId] 
 
-See [SearchEndpoints](types/SearchEndpoints.d.ts)
+Search and play top 20 tracks
+
+## playlist [options] <query> [deviceId] [-r, --random]
+
+Search and play 1st playlist, or random out of top 10 if -r provided
 
 Triggers (user-visible examples):
 
